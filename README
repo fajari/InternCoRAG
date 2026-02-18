@@ -1,0 +1,109 @@
+🧠 INTERNAL COMPANY KNOWLEDGE ASSISTANT
+
+Production-Ready RAG System
+
+1️⃣ Technology Stack
+🖥 Frontend
+- Streamlit
+- Chat UI
+- File upload
+- PDF viewer (iframe)
+- Highlight trigger (“Read More”)
+
+Document Processing
+
+- LangChain Document schema
+- Custom:
+  loader.py → load PDF/TXT/MD
+  chunker.py → Section-based semantic chunking
+  Regex-based structure detection
+- TOC extraction
+- Header & version history skipping
+
+🧩 Chunking Strategy
+- Section-Based Semantic Chunking
+- Satu chunk = satu section utuh
+- Skip:
+   Cover
+   Table of Contents
+   Version History
+   Repeated page header
+
+🗄 Vector Store
+Qdrant (Self-hosted)
+
+Digunakan sebagai:
+- Persistent vector database
+- Metadata filtering
+- Production-grade similarity search
+
+Configuration:
+Distance: Cosine
+Embedding model: sentence-transformers/all-MiniLM-L6-v2
+Metadata filtering: workspace_id
+
+🧠 RAG Chain
+Mode: Compliance Mode (No hallucination)
+LLM:
+  Optional (Ollama local)
+  Not required for summary
+  Deterministic formatting
+
+System Flow Diagram:
+
+User Upload PDF
+        ↓
+Document Loader
+        ↓
+Section-Based Chunker
+        ↓
+Metadata Enrichment
+        ↓
+Embedding Generation
+        ↓
+Qdrant Vector Store
+        ↓
+--------------------------------
+User Ask Question
+        ↓
+Similarity Search (Qdrant)
+        ↓
+Custom Re-rank (Title + Density)
+        ↓
+Best Section Selected
+        ↓
+Compliance Formatter
+        ↓
+Answer + Bullet Points
+        ↓
+(If Click Read More)
+        ↓
+Precise PDF Highlight
+        ↓
+Display Page
+
+1️⃣ Install Dependencies
+pip install streamlit
+pip install langchain
+pip install langchain-community
+pip install qdrant-client
+pip install sentence-transformers
+pip install pymupdf
+
+2️⃣ Run Qdrant
+docker run -p 6333:6333 qdrant/qdrant
+
+3️⃣ Set Config
+
+config.py
+
+QDRANT_URL = "http://localhost:6333"
+QDRANT_COLLECTION = "company_knowledge"
+
+Running the System
+streamlit run app.py
+
+Open:
+
+http://localhost:8501
+

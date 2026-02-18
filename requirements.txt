@@ -1,0 +1,15 @@
+streamlit
+
+langchain==0.1.16
+langchain-core==0.1.52
+langchain-community==0.0.38
+langchain-text-splitters==0.0.1
+openai
+requests
+
+qdrant-client==1.6.9
+sentence-transformers==2.6.1
+pypdf
+streamlit-pdf-viewer
+PyMuPDF==1.23.9
+python-dotenv
