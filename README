@@ -1,7 +1,74 @@
 INTERNAL COMPANY KNOWLEDGE ASSISTANT
 
-It's internal company AI that help employee to understand document of the company, just like Employee Guidelines, or Onboarding Document For Employee.
-It will help Human Resource to explain to new employee.
+Internal Company Knowledge Assistant
+
+An Offline, Compliance-First Retrieval-Augmented Intelligence Platform
+
+Product Overview
+Internal Company Knowledge Assistant is an enterprise-grade Retrieval-Augmented Generation (RAG) platform designed to transform static corporate documents into a structured, searchable, and compliance-safe knowledge system.
+Unlike general AI chat tools that rely on public internet data, this system operates exclusively on your internal documents. It retrieves precise sections from company policies, SOPs, compliance manuals, and operational documentation, and delivers structured, reliable answers based strictly on verified content.
+The platform combines section-based semantic chunking, metadata-driven vector search, and deterministic response formatting to ensure answers are accurate, traceable, and auditable.
+It is built for organizations that require control, precision, and security.
+
+Product Purpose
+Modern enterprises struggle with knowledge fragmentation. Critical policies and procedures are buried inside long PDF documents. Employees waste time searching for information. Compliance teams worry about inconsistent interpretations. Leadership lacks confidence in AI systems that hallucinate.
+
+This platform solves those problems by:
+
+* Converting company documents into structured semantic sections
+* Enabling section-level precision retrieval
+* Providing deterministic, compliance-ready summaries
+* Eliminating hallucinated responses
+* Maintaining full data control in an offline environment
+
+Why Offline?
+
+This system is designed to operate fully offline using local infrastructure.
+
+1. Data Privacy & Confidentiality
+Corporate policies, operational manuals, and compliance documentation often contain sensitive information. Uploading these materials to public AI services introduces legal and security risks.
+
+Offline architecture ensures:
+* No external API calls
+* No document transmission to third parties
+* Full control of internal data
+* Reduced regulatory exposure
+
+2. Compliance & Regulatory Requirements
+Industries such as finance, telecommunications, government, and healthcare require strict data handling practices. An offline RAG system supports:
+* Data sovereignty
+* Audit traceability
+* Internal hosting compliance
+* Controlled access environments
+
+3. Zero Dependency on External AI Providers
+The system integrates with a local LLM (e.g., via Ollama), ensuring:
+* Stable performance
+* No API usage costs
+* No rate limits
+* No external service outages
+
+Predictable operational behavior
+
+4. Deterministic Control
+Because the system operates within a closed knowledge boundary, responses are grounded strictly in indexed documents. This reduces hallucination risk and increases organizational trust.
+
+Core Features
+1. Section-Based Semantic Chunking
+2. Metadata-Driven Vector Retrieval
+3. Compliance Mode Output
+4. Accurate PDF Highlighting
+5. Workspace Isolation
+6. Deterministic Architecture
+7. Production-Ready Stack
+
+Ideal Use Cases
+- Internal HR policy assistant
+- SOP operational lookup
+- Compliance knowledge automation
+- IT operations documentation retrieval
+- Security incident manual lookup
+- Multi-branch enterprise knowledge management
 
 Production-Ready RAG System
 
