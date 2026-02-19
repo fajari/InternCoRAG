@@ -1,8 +1,11 @@
-🧠 INTERNAL COMPANY KNOWLEDGE ASSISTANT
+INTERNAL COMPANY KNOWLEDGE ASSISTANT
+
+It's internal company AI that help employee to understand document of the company, just like Employee Guidelines, or Onboarding Document For Employee.
+It will help Human Resource to explain to new employee.
 
 Production-Ready RAG System
 
-1️⃣ Technology Stack
+1. Technology Stack
 🖥 Frontend
 - Streamlit
 - Chat UI
@@ -10,7 +13,7 @@ Production-Ready RAG System
 - PDF viewer (iframe)
 - Highlight trigger (“Read More”)
 
-Document Processing
+2. Document Processing
 
 - LangChain Document schema
 - Custom:
@@ -20,19 +23,19 @@ Document Processing
 - TOC extraction
 - Header & version history skipping
 
-🧩 Chunking Strategy
+3. Chunking Strategy
 - Section-Based Semantic Chunking
-- Satu chunk = satu section utuh
+- Section based chunking
 - Skip:
    Cover
    Table of Contents
    Version History
    Repeated page header
 
-🗄 Vector Store
+4. Vector Store
 Qdrant (Self-hosted)
 
-Digunakan sebagai:
+Used as:
 - Persistent vector database
 - Metadata filtering
 - Production-grade similarity search
@@ -42,14 +45,14 @@ Distance: Cosine
 Embedding model: sentence-transformers/all-MiniLM-L6-v2
 Metadata filtering: workspace_id
 
-🧠 RAG Chain
+5. RAG Chain
 Mode: Compliance Mode (No hallucination)
 LLM:
   Optional (Ollama local)
   Not required for summary
   Deterministic formatting
 
-System Flow Diagram:
+6. System Flow Diagram:
 
 User Upload PDF
         ↓
@@ -82,15 +85,12 @@ Precise PDF Highlight
         ↓
 Display Page
 
-1️⃣ Install Dependencies
-pip install streamlit
-pip install langchain
-pip install langchain-community
-pip install qdrant-client
-pip install sentence-transformers
-pip install pymupdf
+Running the App
+1. Install Dependencies/Library
 
-2️⃣ Run Qdrant
+pip install -r requirements.txt
+
+2. Run Qdrant
 docker run -p 6333:6333 qdrant/qdrant
 
 3️⃣ Set Config
@@ -107,3 +107,10 @@ Open:
 
 http://localhost:8501
 
+
+4. Create folder ./uploads/ on root directory
+
+Set Config
+
+Example file:
+Small_Business_Administration_Employee_polich_Template.pdf
