@@ -11,7 +11,7 @@ ENV/
 !.env.example
 .streamlit/secrets.toml
 #uploads/
-*.pdf
+#*.pdf
 *_highlighted_*.pdf
 *.log
 logs/
