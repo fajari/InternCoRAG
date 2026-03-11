@@ -28,6 +28,14 @@ st.session_state.setdefault("open_pdf_index", None)
 st.session_state.setdefault("last_result", None)
 
 
+def render_answer(text: str):
+    if not text:
+        st.write("")
+        return
+
+    st.markdown(text)
+
+
 # =====================================================
 # SAFE PDF VIEWER
 # =====================================================
@@ -118,7 +126,7 @@ for h in st.session_state.chat_history:
     with st.chat_message("user"):
         st.write(h["question"])
     with st.chat_message("assistant"):
-        st.write(h["answer"])
+        render_answer(h["answer"])
 
 
 # =====================================================
@@ -157,7 +165,7 @@ if st.session_state.last_result:
 
     with st.chat_message("assistant"):
 
-        st.write(result.get("answer", ""))
+        render_answer(result.get("answer", ""))
 
         for h in result.get("highlight", []):
             st.markdown(f"> {h}")
@@ -211,4 +219,3 @@ def build_overview_from_keypoints(keypoints: list[str]) -> str:
     # potong maksimal 25 kata
     words = first.split()
     return " ".join(words[:25]) + "..."
-

@@ -45,6 +45,30 @@ def remove_duplicate_sentences(items: List[str]) -> List[str]:
     return result
 
 
+def split_long_statement(text: str) -> List[str]:
+    """
+    Split a long policy paragraph into readable bullet points.
+    """
+
+    if not text:
+        return []
+
+    normalized = re.sub(r"\s+", " ", text).strip(" .:-")
+
+    if not normalized:
+        return []
+
+    parts = re.split(r"(?<=[.!?])\s+|;\s+", normalized)
+    cleaned_parts = []
+
+    for part in parts:
+        part = part.strip(" .:-")
+        if len(part) >= 12:
+            cleaned_parts.append(part)
+
+    return cleaned_parts
+
+
 # ============================================================
 # KEYPOINT EXTRACTION
 # ============================================================
@@ -62,126 +86,48 @@ def extract_keypoints(text: str, section_title: str | None = None) -> List[str]:
     # Remove duplicated section title inside text
     if section_title:
         text = re.sub(
-            re.escape(section_title),
+            rf"^{re.escape(section_title)}[\s:.-]*",
             "",
             text,
             flags=re.IGNORECASE
         ).strip()
 
-    keypoints = []
+    keypoints: List[str] = []
 
-    # ---------------------------------------------------
-    # STEP 1: Split intro vs list (detect "required")
-    # ---------------------------------------------------
+    # Preserve explicit bullet formatting when present in the source text.
+    explicit_bullets = re.findall(r"(?:^|\s)[\-•]\s+(.+?)(?=(?:\s[\-•]\s+)|$)", text)
+    if explicit_bullets:
+        for item in explicit_bullets:
+            keypoints.extend(split_long_statement(item))
+        return remove_duplicate_sentences(keypoints)[:10]
 
-    match = re.search(r"\brequired\b", text, re.IGNORECASE)
+    # Split around common policy connectors to avoid one very long bullet.
+    connector_patterns = [
+        r"(?i)\.\s+(?=Employees?\b)",
+        r"(?i)\.\s+(?=The company\b)",
+        r"(?i)\.\s+(?=Sick days?\b)",
+        r"(?i)\.\s+(?=Abuse of this policy\b)",
+        r"(?i)\.\s+(?=Managers?\b)",
+        r"(?i)\.\s+(?=Upon\b)",
+        r"(?i)\.\s+(?=If\b)",
+    ]
 
-    if match:
-        intro = text[:match.end()].strip()
-        remainder = text[match.end():].strip()
-    else:
-        return [text]
+    segmented = [text]
+    for pattern in connector_patterns:
+        updated = []
+        for segment in segmented:
+            updated.extend(re.split(pattern, segment))
+        segmented = updated
 
-    # Clean intro
-    intro = intro.strip(" .:-")
-    if len(intro) > 25:
-        keypoints.append(intro)
+    for segment in segmented:
+        keypoints.extend(split_long_statement(segment))
 
-    # ---------------------------------------------------
-    # STEP 2: Extract dash list items
-    # ---------------------------------------------------
+    cleaned_points = remove_duplicate_sentences(keypoints)
 
-    # Find all occurrences of "- to ..."
-    items = re.findall(r"-\s*to\s+([^.;]+)", remainder, re.IGNORECASE)
+    if cleaned_points:
+        return cleaned_points[:10]
 
-    for item in items:
-        item = item.strip(" .:-")
-        if len(item) > 15:
-            keypoints.append("To " + item)
-
-    # ---------------------------------------------------
-    # STEP 3: Remove duplicates safely
-    # ---------------------------------------------------
-
-    seen = set()
-    clean_points = []
-
-    for kp in keypoints:
-        k = kp.lower()
-        if k not in seen:
-            seen.add(k)
-            clean_points.append(kp)
-
-    return clean_points
-
-
-    # -----------------------------------------
-    # STEP 1: Split intro vs detailed list
-    # -----------------------------------------
-
-    # Detect "Upon termination" as logical split
-    split_marker = re.search(r"\bUpon\b", text, re.IGNORECASE)
-
-    if split_marker:
-        intro = text[:split_marker.start()].strip()
-        rest = text[split_marker.start():].strip()
-    else:
-        # fallback
-        parts = text.split(":", 1)
-        if len(parts) == 2:
-            intro, rest = parts
-        else:
-            intro = text
-            rest = ""
-
-    # -----------------------------------------
-    # STEP 2: Clean intro
-    # -----------------------------------------
-
-    intro = intro.strip(" .:-")
-
-    if len(intro) > 30:
-        keypoints.append(intro)
-
-    # -----------------------------------------
-    # STEP 3: Extract bullet-style items
-    # -----------------------------------------
-
-    if rest:
-
-        # split by dash bullets or semicolon
-        items = re.split(r"\s-\s|;\s*", rest)
-
-        for item in items:
-            item = item.strip(" .:-")
-
-            if not item:
-                continue
-
-            # remove duplicate intro
-            if item.lower() == intro.lower():
-                continue
-
-            # skip garbage short lines
-            if len(item) < 15:
-                continue
-
-            keypoints.append(item)
-
-    # -----------------------------------------
-    # STEP 4: Remove duplicates cleanly
-    # -----------------------------------------
-
-    seen = set()
-    final = []
-
-    for kp in keypoints:
-        key = kp.lower()
-        if key not in seen:
-            seen.add(key)
-            final.append(kp)
-
-    return final[:10]
+    return [text]
 
 # ============================================================
 # OVERVIEW GENERATION (Deterministic)
@@ -231,7 +177,7 @@ def format_section(title: str, raw_text: str) -> tuple[str, List[str]]:
     output.append("")
 
     for kp in keypoints:
-        output.append(f"• {kp}")
+        output.append(f"- {kp}")
 
     return "\n".join(output), keypoints
 
