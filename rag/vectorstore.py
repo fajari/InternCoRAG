@@ -48,6 +48,25 @@ def get_vectorstore():
         embeddings=embeddings,  # ✅ correct param
     )
 
+
+def clear_workspace_documents(workspace_id: str):
+    ensure_collection()
+
+    client.delete(
+        collection_name=QDRANT_COLLECTION,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="metadata.workspace_id",
+                        match=models.MatchValue(value=str(workspace_id))
+                    )
+                ]
+            )
+        ),
+        wait=True,
+    )
+
 # =====================================================
 # CHECK IF WORKSPACE HAS DOCUMENTS (DEFENSIVE)
 # =====================================================

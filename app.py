@@ -6,7 +6,7 @@ import streamlit.components.v1 as components
 
 from documents.loader import load_document
 from documents.chunker import chunk_documents
-from rag.vectorstore import get_vectorstore, has_documents
+from rag.vectorstore import get_vectorstore, has_documents, clear_workspace_documents
 from rag.chain import get_chain
 from utils.pdf_highlighter import highlight_pdf
 
@@ -34,6 +34,25 @@ def render_answer(text: str):
         return
 
     st.markdown(text)
+
+
+def clear_workspace_state():
+    st.session_state.chat_history = []
+    st.session_state.open_pdf_index = None
+    st.session_state.last_result = None
+
+
+def delete_workspace_uploads(upload_dir: str, workspace_id: str):
+    prefix = f"{workspace_id}_"
+
+    for filename in os.listdir(upload_dir):
+        if not filename.startswith(prefix):
+            continue
+
+        file_path = os.path.join(upload_dir, filename)
+
+        if os.path.isfile(file_path):
+            os.remove(file_path)
 
 
 # =====================================================
@@ -102,11 +121,19 @@ with st.sidebar:
                     "source": uploaded_file.name,
                 })
 
+            clear_workspace_documents(st.session_state.workspace_id)
             get_vectorstore().add_documents(chunks)
             os.unlink(tmp.name)
 
             st.success("Document indexed")
             st.rerun()
+
+    if st.button("Clear Index"):
+        clear_workspace_documents(st.session_state.workspace_id)
+        delete_workspace_uploads(UPLOAD_DIR, st.session_state.workspace_id)
+        clear_workspace_state()
+        st.success("Index cleared")
+        st.rerun()
 
 
 # =====================================================
@@ -122,9 +149,18 @@ if not has_documents(st.session_state.workspace_id):
 # =====================================================
 # CHAT HISTORY
 # =====================================================
-for h in st.session_state.chat_history:
+history_items = st.session_state.chat_history
+hide_last_history_answer = (
+    st.session_state.open_pdf_index is not None
+    and st.session_state.last_result is not None
+    and bool(history_items)
+)
+
+for index, h in enumerate(history_items):
     with st.chat_message("user"):
         st.write(h["question"])
+    if hide_last_history_answer and index == len(history_items) - 1:
+        continue
     with st.chat_message("assistant"):
         render_answer(h["answer"])
 
@@ -162,13 +198,15 @@ if question:
 if st.session_state.last_result:
 
     result = st.session_state.last_result
+    show_answer_block = st.session_state.open_pdf_index is None
 
     with st.chat_message("assistant"):
 
-        render_answer(result.get("answer", ""))
+        if show_answer_block:
+            render_answer(result.get("answer", ""))
 
-        for h in result.get("highlight", []):
-            st.markdown(f"> {h}")
+            for h in result.get("highlight", []):
+                st.markdown(f"> {h}")
 
         # ================================
         # READ MORE SECTION
@@ -190,7 +228,7 @@ if st.session_state.last_result:
                         file_path,
                         result.get("highlight", []),
                         result.get("highlight_pages", []),
-                        section_title=s.get("section")
+                        section_title=result.get("selected_section_title") or s.get("section")
                     )
 
                     render_pdf(
