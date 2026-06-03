@@ -1,183 +1,190 @@
-INTERNAL COMPANY KNOWLEDGE ASSISTANT
+# Analisa Kasus Keputusan Mahkamah Agung
 
-Internal Company Knowledge Assistant
+Aplikasi ini adalah alat bantu analisis dokumen PDF putusan atau berkas hukum berbasis Retrieval-Augmented Generation (RAG). Pengguna dapat mengunggah PDF, memproses isi dokumen ke vector database, lalu bertanya dalam bahasa natural untuk mendapatkan rangkuman, kronologi, aktor yang terlibat, relasi sosial, dan jawaban berbasis isi dokumen.
 
-An Offline, Compliance-First Retrieval-Augmented Intelligence Platform
+Program ini dirancang untuk berjalan secara lokal/offline agar dokumen sensitif tidak perlu dikirim ke layanan publik. Komponen utama yang digunakan adalah Streamlit untuk antarmuka, Qdrant untuk vector store, sentence-transformers untuk embedding, dan Ollama sebagai LLM lokal opsional.
 
-Product Overview
-Internal Company Knowledge Assistant is an enterprise-grade Retrieval-Augmented Generation (RAG) platform designed to transform static corporate documents into a structured, searchable, and compliance-safe knowledge system.
-Unlike general AI chat tools that rely on public internet data, this system operates exclusively on your internal documents. It retrieves precise sections from company policies, SOPs, compliance manuals, and operational documentation, and delivers structured, reliable answers based strictly on verified content.
-The platform combines section-based semantic chunking, metadata-driven vector search, and deterministic response formatting to ensure answers are accurate, traceable, and auditable.
-It is built for organizations that require control, precision, and security.
+## Fungsi Utama
 
-Product Purpose
-Modern enterprises struggle with knowledge fragmentation. Critical policies and procedures are buried inside long PDF documents. Employees waste time searching for information. Compliance teams worry about inconsistent interpretations. Leadership lacks confidence in AI systems that hallucinate.
+- Mengunggah dan membaca dokumen PDF.
+- Mengekstrak teks PDF dengan beberapa fallback: PyMuPDF, OCR Tesseract, `pdftotext`, lalu PyPDF.
+- Memecah dokumen menjadi chunk semantik yang mempertahankan konteks halaman, section, dan tipe konten.
+- Menyimpan embedding dokumen ke Qdrant berdasarkan `workspace_id`.
+- Menjawab pertanyaan pengguna berdasarkan dokumen yang sudah diindeks.
+- Membuat ringkasan kasus, kronologi, dan poin penting dari dokumen.
+- Mengidentifikasi aktor, profil aktor, dan relasi antaraktor.
+- Menampilkan diagram Mermaid untuk jaringan sosial atau struktur relasi.
+- Mendukung Graph RAG opsional dengan NetworkX, LlamaIndex, Microsoft GraphRAG, dan sinkronisasi Neo4j.
 
-This platform solves those problems by:
+## Cara Kerja Singkat
 
-* Converting company documents into structured semantic sections
-* Enabling section-level precision retrieval
-* Providing deterministic, compliance-ready summaries
-* Eliminating hallucinated responses
-* Maintaining full data control in an offline environment
+```text
+Upload PDF
+    -> Document Loader
+    -> Semantic Chunker
+    -> Metadata Enrichment
+    -> Embedding Generation
+    -> Qdrant Vector Store
 
-Why Offline?
+Pertanyaan Pengguna
+    -> Retrieval dari Qdrant
+    -> Re-ranking dan context selection
+    -> Narrative / case analysis
+    -> Jawaban, ringkasan, atau diagram
+```
 
-This system is designed to operate fully offline using local infrastructure.
+Jawaban dibuat dari konten dokumen yang sudah diproses. Bila LLM lokal tersedia, aplikasi dapat memakai Ollama untuk memperkaya klasifikasi naratif, ekstraksi event, dan penyusunan jawaban. Bila tidak, sebagian proses tetap memakai heuristik dan formatter deterministik.
 
-1. Data Privacy & Confidentiality
-Corporate policies, operational manuals, and compliance documentation often contain sensitive information. Uploading these materials to public AI services introduces legal and security risks.
+## Struktur Proyek
 
-Offline architecture ensures:
-* No external API calls
-* No document transmission to third parties
-* Full control of internal data
-* Reduced regulatory exposure
+```text
+app.py                  # Aplikasi Streamlit utama
+config.py               # Konfigurasi environment, Qdrant, LLM, dan Graph RAG
+documents/
+  loader.py             # Loader PDF/TXT/MD dan fallback OCR
+  chunker.py            # Chunking semantik dan metadata dokumen
+narrative/
+  classifier.py         # Klasifikasi chunk naratif/evidence/metadata
+  extractor.py          # Ekstraksi event dan aktor
+  pipeline.py           # Pipeline analisis naratif
+  schemas.py            # Struktur data analisis
+rag/
+  vectorstore.py        # Koneksi embedding dan Qdrant
+  retriever.py          # Retrieval dan scoring dokumen
+  ranker.py             # Ranking hasil retrieval
+  chain.py              # Logika tanya jawab dan analisis kasus
+  graph_pipeline.py     # Graph bundle, NetworkX, dan Neo4j sync opsional
+utils/
+  pdf_highlighter.py    # Utilitas highlight PDF
+  security.py           # Utilitas keamanan path/file
+```
 
-2. Compliance & Regulatory Requirements
-Industries such as finance, telecommunications, government, and healthcare require strict data handling practices. An offline RAG system supports:
-* Data sovereignty
-* Audit traceability
-* Internal hosting compliance
-* Controlled access environments
+## Prasyarat
 
-3. Zero Dependency on External AI Providers
-The system integrates with a local LLM (e.g., via Ollama), ensuring:
-* Stable performance
-* No API usage costs
-* No rate limits
-* No external service outages
+- Python 3.10 sampai 3.12 direkomendasikan.
+- Docker untuk menjalankan Qdrant.
+- Ollama jika ingin memakai LLM lokal.
+- Tesseract OCR opsional untuk PDF hasil scan.
+- `pdftotext` opsional sebagai fallback ekstraksi PDF.
 
-Predictable operational behavior
+## Instalasi
 
-4. Deterministic Control
-Because the system operates within a closed knowledge boundary, responses are grounded strictly in indexed documents. This reduces hallucination risk and increases organizational trust.
+1. Buat dan aktifkan virtual environment.
 
-Core Features
-1. Section-Based Semantic Chunking
-2. Metadata-Driven Vector Retrieval
-3. Compliance Mode Output
-4. Accurate PDF Highlighting
-5. Workspace Isolation
-6. Deterministic Architecture
-7. Production-Ready Stack
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 
-Ideal Use Cases
-- Internal HR policy assistant
-- SOP operational lookup
-- Compliance knowledge automation
-- IT operations documentation retrieval
-- Security incident manual lookup
-- Multi-branch enterprise knowledge management
+2. Install dependency utama.
 
-Production-Ready RAG System
-
-1. Technology Stack
-🖥 Frontend
-- Streamlit
-- Chat UI
-- File upload
-- PDF viewer (iframe)
-- Highlight trigger (“Read More”)
-
-2. Document Processing
-
-- LangChain Document schema
-- Custom:
-  loader.py → load PDF/TXT/MD
-  chunker.py → Section-based semantic chunking
-  Regex-based structure detection
-- TOC extraction
-- Header & version history skipping
-
-3. Chunking Strategy
-- Section-Based Semantic Chunking
-- Section based chunking
-- Skip:
-   Cover
-   Table of Contents
-   Version History
-   Repeated page header
-
-4. Vector Store
-Qdrant (Self-hosted)
-
-Used as:
-- Persistent vector database
-- Metadata filtering
-- Production-grade similarity search
-
-Configuration:
-Distance: Cosine
-Embedding model: sentence-transformers/all-MiniLM-L6-v2
-Metadata filtering: workspace_id
-
-5. RAG Chain
-Mode: Compliance Mode (No hallucination)
-LLM:
-  Optional (Ollama local)
-  Not required for summary
-  Deterministic formatting
-
-6. System Flow Diagram:
-
-User Upload PDF
-        ↓
-Document Loader
-        ↓
-Section-Based Chunker
-        ↓
-Metadata Enrichment
-        ↓
-Embedding Generation
-        ↓
-Qdrant Vector Store
-        ↓
---------------------------------
-User Ask Question
-        ↓
-Similarity Search (Qdrant)
-        ↓
-Custom Re-rank (Title + Density)
-        ↓
-Best Section Selected
-        ↓
-Compliance Formatter
-        ↓
-Answer + Bullet Points
-        ↓
-(If Click Read More)
-        ↓
-Precise PDF Highlight
-        ↓
-Display Page
-
-Running the App
-1. Install Dependencies/Library
-
+```bash
 pip install -r requirements.txt
+```
 
-2. Run Qdrant
+3. Jalankan Qdrant.
+
+```bash
 docker run -p 6333:6333 qdrant/qdrant
+```
 
-3️⃣ Set Config
+4. Jika memakai Ollama, jalankan service dan siapkan model.
 
-config.py
+```bash
+ollama serve
+ollama pull mistral:7b
+```
 
-QDRANT_URL = "http://localhost:6333"
-QDRANT_COLLECTION = "company_knowledge"
+## Konfigurasi
 
-Running the System
+Konfigurasi default berada di `config.py` dan bisa dioverride melalui file `.env`.
+
+Contoh `.env`:
+
+```env
+ENV=development
+QDRANT_URL=http://localhost:6333
+QDRANT_COLLECTION=company_knowledge
+
+LLM_PROVIDER=ollama
+LLM_ENABLED=true
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=mistral:7b
+OLLAMA_REQUEST_TIMEOUT=12
+
+ENABLE_GRAPH_RAG=true
+ENABLE_LLAMAINDEX_KG=false
+ENABLE_NEO4J_SYNC=false
+NEO4J_URI=
+NEO4J_USERNAME=
+NEO4J_PASSWORD=
+NEO4J_DATABASE=neo4j
+
+NARRATIVE_RAG_ENABLED=true
+NARRATIVE_LLM_CLASSIFIER_THRESHOLD=0.72
+NARRATIVE_MAX_EVENTS=80
+```
+
+## Menjalankan Aplikasi
+
+```bash
 streamlit run app.py
+```
 
-Open:
+Buka aplikasi di:
 
+```text
 http://localhost:8501
+```
 
+Folder `uploads/` akan dibuat otomatis saat aplikasi berjalan. File upload tidak disimpan sebagai source code dan sudah diabaikan oleh git.
 
-4. Create folder ./uploads/ on root directory
+## Alur Penggunaan
 
-Set Config
+1. Buka aplikasi Streamlit.
+2. Upload PDF putusan atau dokumen hukum dari sidebar.
+3. Klik `Process Document` untuk membaca, memecah, dan mengindeks dokumen.
+4. Gunakan tombol cepat seperti `Ringkasan Kasus` atau `Diagram Jaringan Sosial`.
+5. Ajukan pertanyaan lanjutan melalui chat, misalnya:
 
-Example file:
-/Examples/Small_Business_Administration_Employee_polich_Template.pdf
+```text
+Siapa aktor yang paling sering muncul?
+Jelaskan kronologi perkara berdasarkan tanggal.
+Apa hubungan antara terdakwa dan saksi?
+Apa indikasi aliran dana dalam dokumen?
+```
+
+6. Klik `Clear Index` jika ingin membersihkan dokumen dari workspace aktif.
+
+## Graph RAG Opsional
+
+Dependency Graph RAG lanjutan dipisahkan dari dependency utama karena dapat menarik versi library yang lebih baru dan berpotensi bentrok dengan stack LangChain utama.
+
+Install hanya jika diperlukan:
+
+```bash
+pip install -r requirements-graph.txt
+```
+
+Fitur yang terkait:
+
+- NetworkX untuk graph lokal dan centrality.
+- LlamaIndex KnowledgeGraphIndex jika `ENABLE_LLAMAINDEX_KG=true`.
+- Neo4j sync jika `ENABLE_NEO4J_SYNC=true` dan kredensial Neo4j sudah diset.
+- Microsoft GraphRAG sebagai eksperimen integrasi tambahan.
+
+## Catatan Teknis
+
+- Qdrant digunakan sebagai vector database persisten.
+- Embedding default memakai `sentence-transformers/all-MiniLM-L6-v2`.
+- Data dipisahkan berdasarkan `workspace_id`.
+- Mode analisis isi PDF di `app.py` saat ini ditandai nonaktif melalui `CASE_ANALYSIS_DISABLED = True`.
+- Aplikasi mengutamakan pemrosesan lokal untuk menjaga privasi dokumen.
+
+## Troubleshooting
+
+- Jika aplikasi tidak menemukan dokumen, pastikan PDF sudah diproses dengan tombol `Process Document`.
+- Jika Qdrant gagal tersambung, pastikan container Qdrant berjalan di `http://localhost:6333`.
+- Jika jawaban LLM kosong atau lambat, pastikan Ollama berjalan dan model sesuai dengan `OLLAMA_MODEL`.
+- Jika PDF hasil scan tidak terbaca, install Tesseract OCR dan bahasa `ind`/`eng`.
+- Jika dependency Graph RAG bentrok, gunakan dependency utama terlebih dahulu dan install `requirements-graph.txt` hanya saat fitur graph lanjutan benar-benar dibutuhkan.

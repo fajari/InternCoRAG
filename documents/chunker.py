@@ -1,6 +1,10 @@
 import re
+import math
 from typing import List, Dict, Any
-from langchain.schema import Document
+from langchain_core.documents import Document
+from config import CHUNK_SIZE, CHUNK_OVERLAP
+from narrative.classifier import heuristic_classify
+from rag.vectorstore import embeddings
 
 SECTION_REGEX = re.compile(
     r"(?<!\w)((?:\d+\.)+\d+)\s+([A-Z][A-Za-z0-9/&()' -]{2,120}?)"
@@ -14,6 +18,30 @@ TOC_ENTRY_REGEX = re.compile(
 )
 
 MIN_SECTION_LENGTH = 120
+SEMANTIC_MIN_CHUNK_CHARS = max(320, CHUNK_SIZE // 2)
+SEMANTIC_MAX_CHUNK_CHARS = max(900, int(CHUNK_SIZE * 1.8))
+SEMANTIC_UNIT_TARGET_CHARS = 420
+SEMANTIC_SIMILARITY_THRESHOLD = 0.42
+
+NARRATIVE_TERMS = {
+    "bahwa", "peristiwa", "kejadian", "kronologi", "kemudian", "selanjutnya",
+    "setelah", "sebelum", "pada tanggal", "dilakukan", "menerima", "mengirim",
+    "mentransfer", "membayar", "melaporkan", "menemui", "menghubungi",
+    "terdakwa", "korban", "saksi", "pemohon", "termohon", "penggugat",
+    "tergugat", "the victim", "witness", "reported", "transferred",
+}
+EVIDENCE_TERMS = {
+    "bukti", "barang bukti", "surat", "lampiran", "rekening", "mutasi",
+    "invoice", "kwitansi", "nota", "kontrak", "rekaman", "screenshot",
+    "foto", "dokumen", "putusan", "berita acara", "hasil pemeriksaan",
+    "exhibit", "evidence", "attachment", "appendix",
+}
+METADATA_TERMS = {
+    "nomor perkara", "putusan nomor", "identitas", "nama", "tempat lahir",
+    "umur", "tanggal lahir", "jenis kelamin", "kebangsaan", "tempat tinggal",
+    "agama", "pekerjaan", "document number", "classification", "status",
+    "approved by", "effective date", "author", "owner",
+}
 
 
 def normalize_text(text: str) -> str:
@@ -185,6 +213,218 @@ def is_front_matter(text: str) -> bool:
     return matched_keywords >= 3 and len(t) < 2500
 
 
+def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
+    dot = sum(a * b for a, b in zip(vec_a, vec_b))
+    norm_a = math.sqrt(sum(a * a for a in vec_a))
+    norm_b = math.sqrt(sum(b * b for b in vec_b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def normalize_chunk_text(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "")).strip()
+
+
+def split_sentences(text: str) -> List[str]:
+    normalized = normalize_chunk_text(text)
+    if not normalized:
+        return []
+    parts = re.split(r"(?<=[.!?])\s+|;\s+", normalized)
+    return [part.strip() for part in parts if part.strip()]
+
+
+def pack_sentences(sentences: List[str], target_chars: int) -> List[str]:
+    units: List[str] = []
+    current: List[str] = []
+    current_len = 0
+
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+
+        projected = current_len + len(sentence) + (1 if current else 0)
+        if current and projected > target_chars:
+            units.append(" ".join(current).strip())
+            current = [sentence]
+            current_len = len(sentence)
+        else:
+            current.append(sentence)
+            current_len = projected
+
+    if current:
+        units.append(" ".join(current).strip())
+
+    return units
+
+
+def split_semantic_units(text: str) -> List[str]:
+    if not text:
+        return []
+
+    paragraph_candidates = [
+        normalize_chunk_text(part)
+        for part in re.split(r"\n\s*\n+", text)
+    ]
+    paragraph_candidates = [part for part in paragraph_candidates if part]
+
+    if not paragraph_candidates:
+        paragraph_candidates = [normalize_chunk_text(text)]
+
+    units: List[str] = []
+    for paragraph in paragraph_candidates:
+        if len(paragraph) <= SEMANTIC_UNIT_TARGET_CHARS:
+            units.append(paragraph)
+            continue
+
+        sentence_units = pack_sentences(
+            split_sentences(paragraph),
+            SEMANTIC_UNIT_TARGET_CHARS,
+        )
+        units.extend(sentence_units or [paragraph])
+
+    return [unit for unit in units if unit]
+
+
+def build_overlap_prefix(text: str, max_chars: int) -> str:
+    sentences = split_sentences(text)
+    if not sentences:
+        return ""
+
+    selected: List[str] = []
+    total_len = 0
+    for sentence in reversed(sentences):
+        projected = total_len + len(sentence) + (1 if selected else 0)
+        if selected and projected > max_chars:
+            break
+        selected.insert(0, sentence)
+        total_len = projected
+
+    return " ".join(selected).strip()
+
+
+def semantic_subchunks(text: str) -> List[str]:
+    normalized = text.strip()
+    if len(normalized) <= CHUNK_SIZE:
+        return [normalized]
+
+    units = split_semantic_units(normalized)
+    if len(units) <= 1:
+        return [normalized]
+
+    try:
+        vectors = embeddings.embed_documents(units)
+    except Exception:
+        return [normalized]
+
+    chunks: List[str] = []
+    current_units = [units[0]]
+    current_vector = vectors[0]
+    current_len = len(units[0])
+
+    for unit, vector in zip(units[1:], vectors[1:]):
+        similarity = cosine_similarity(current_vector, vector)
+        projected_len = current_len + 2 + len(unit)
+
+        should_merge = (
+            current_len < SEMANTIC_MIN_CHUNK_CHARS
+            or projected_len <= CHUNK_SIZE
+            or (similarity >= SEMANTIC_SIMILARITY_THRESHOLD and projected_len <= SEMANTIC_MAX_CHUNK_CHARS)
+            or len(unit) < 140
+        )
+
+        if should_merge:
+            current_units.append(unit)
+            current_len = projected_len
+            current_vector = [
+                (a + b) / 2.0
+                for a, b in zip(current_vector, vector)
+            ]
+            continue
+
+        chunks.append("\n\n".join(current_units).strip())
+        current_units = [unit]
+        current_vector = vector
+        current_len = len(unit)
+
+    if current_units:
+        chunks.append("\n\n".join(current_units).strip())
+
+    if len(chunks) <= 1:
+        return chunks
+
+    overlapped_chunks: List[str] = []
+    previous_text = ""
+    for chunk in chunks:
+        if previous_text and CHUNK_OVERLAP > 0:
+            overlap = build_overlap_prefix(previous_text, CHUNK_OVERLAP)
+            if overlap and not chunk.startswith(overlap):
+                chunk = f"{overlap}\n\n{chunk}".strip()
+        overlapped_chunks.append(chunk)
+        previous_text = chunk
+
+    return overlapped_chunks
+
+
+def count_keyword_hits(text: str, keywords: set[str]) -> int:
+    lowered = (text or "").lower()
+    return sum(1 for keyword in keywords if keyword in lowered)
+
+
+def looks_like_table_or_attachment(text: str) -> bool:
+    lines = [line for line in (text or "").splitlines() if line.strip()]
+    if not lines:
+        return False
+
+    tableish_lines = 0
+    for line in lines:
+        stripped = line.strip()
+        if "|" in stripped or "\t" in stripped:
+            tableish_lines += 1
+            continue
+        if len(re.split(r"\s{2,}", stripped)) >= 3:
+            tableish_lines += 1
+
+    return tableish_lines >= max(2, len(lines) // 3)
+
+
+def classify_document_part(text: str) -> str:
+    return heuristic_classify(text).classification
+
+
+def build_chunk_documents(text: str, metadata: Dict[str, Any]) -> List[Document]:
+    subchunks = semantic_subchunks(text)
+    total = len(subchunks)
+    built: List[Document] = []
+
+    for index, chunk_text in enumerate(subchunks):
+        classification = heuristic_classify(chunk_text)
+        content_type = classification.classification
+        chunk_id = (
+            f"{re.sub(r'[^A-Za-z0-9]+', '-', str(metadata.get('source', 'doc'))).strip('-').lower() or 'doc'}"
+            f"-p{int(metadata.get('page', 0)) + 1}-c{index}"
+        )
+        built.append(
+            Document(
+                page_content=chunk_text,
+                metadata={
+                    **metadata,
+                    "chunk_id": chunk_id,
+                    "text": chunk_text,
+                    "classification": content_type,
+                    "classification_confidence": round(classification.confidence, 3),
+                    "content_type": content_type,
+                    "is_narrative": content_type == "narrative",
+                    "semantic_chunk_index": index,
+                    "semantic_chunk_total": total,
+                }
+            )
+        )
+
+    return built
+
+
 def chunk_documents(docs: List[Document], original_filename: str) -> List[Document]:
     chunks: List[Document] = []
     global_toc_entries: List[Dict[str, Any]] = []
@@ -212,23 +452,11 @@ def chunk_documents(docs: List[Document], original_filename: str) -> List[Docume
         text = doc.page_content.strip()
         text = remove_repeated_header(text)
 
-        # If a TOC exists, treat everything before it as front matter.
-        if first_toc_page is not None and page < first_toc_page:
-            continue
-
         if is_table_of_contents(text):
             continue
 
         # Without a TOC, keep the previous defensive cover-page skip.
-        if first_toc_page is None and page <= 1:
-            continue
-
-        # Skip metadata-heavy front matter pages even if they appear
-        # around the TOC area before the real document sections start.
-        if is_front_matter(text):
-            continue
-
-        if is_version_history(text):
+        if first_toc_page is None and page <= 1 and is_front_matter(text):
             continue
 
         matches = extract_section_matches(text)
@@ -238,10 +466,10 @@ def chunk_documents(docs: List[Document], original_filename: str) -> List[Docume
             if len(text) < 300:
                 continue
 
-            chunks.append(
-                Document(
-                    page_content=text,
-                    metadata={
+            chunks.extend(
+                build_chunk_documents(
+                    text,
+                    {
                         **doc.metadata,
                         "section": f"General (page {page})",
                         "page": page,
@@ -268,10 +496,10 @@ def chunk_documents(docs: List[Document], original_filename: str) -> List[Docume
 
             section_title = f"{m.group(1)} {m.group(2)}".strip()
 
-            chunks.append(
-                Document(
-                    page_content=section_text,
-                    metadata={
+            chunks.extend(
+                build_chunk_documents(
+                    section_text,
+                    {
                         **doc.metadata,
                         "section": section_title,
                         "page": page,

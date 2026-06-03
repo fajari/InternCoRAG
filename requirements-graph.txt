@@ -1,0 +1,21 @@
+# Optional graph integrations
+#
+# Install these only if you specifically need the related feature set.
+# They are kept out of the base requirements because their latest releases
+# can pull dependency trees newer than the main LangChain 0.1 stack used here.
+#
+# Recommended workflow:
+# 1. Install base app first: `pip install -r requirements.txt`
+# 2. Add graph extras selectively: `pip install -r requirements-graph.txt`
+#
+# Notes:
+# - `graphrag==2.2.0` is chosen because the official PyPI metadata supports
+#   Python 3.10-3.12. Newer 3.x releases require Python >=3.11 and can shift
+#   the surrounding dependency tree more aggressively.
+# - `llama-index>=0.13,<0.14` follows the dependency window used by Neo4j's
+#   GraphRAG experimental extra.
+# - `langchain-neo4j` is intentionally omitted because this app now uses the
+#   official `neo4j` Python driver directly for Cypher queries and sync.
+
+llama-index>=0.13.0,<0.14.0
+graphrag==2.2.0

@@ -1,5 +1,9 @@
 import os
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except Exception:
+    def load_dotenv():
+        return False
 
 load_dotenv()
 
@@ -25,13 +29,33 @@ LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")  # ollama | openai
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral:7b")
+OLLAMA_REQUEST_TIMEOUT = float(os.getenv("OLLAMA_REQUEST_TIMEOUT", "12"))
+
+# =============================
+# GRAPH RAG CONFIG
+# =============================
+ENABLE_GRAPH_RAG = os.getenv("ENABLE_GRAPH_RAG", "true").lower() == "true"
+ENABLE_LLAMAINDEX_KG = os.getenv("ENABLE_LLAMAINDEX_KG", "false").lower() == "true"
+ENABLE_NEO4J_SYNC = os.getenv("ENABLE_NEO4J_SYNC", "false").lower() == "true"
+NEO4J_URI = os.getenv("NEO4J_URI", "")
+NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
+NEO4J_DATABASE = os.getenv("NEO4J_DATABASE", "neo4j")
+GRAPH_RAG_PROJECT_ROOT = os.getenv("GRAPH_RAG_PROJECT_ROOT", "")
 
 # =============================
 # APP CONFIG
 # =============================
 APP_NAME = "Internal Company Knowledge Assistant"
-CHUNK_SIZE = 400
-CHUNK_OVERLAP = 50
+CHUNK_SIZE = 800
+CHUNK_OVERLAP = 200
 TOP_K = 4
 
 LLM_ENABLED = os.getenv("LLM_ENABLED", "true").lower() == "true"
+
+# =============================
+# NARRATIVE-AWARE RAG CONFIG
+# =============================
+NARRATIVE_RAG_ENABLED = os.getenv("NARRATIVE_RAG_ENABLED", "true").lower() == "true"
+NARRATIVE_LLM_CLASSIFIER_THRESHOLD = float(os.getenv("NARRATIVE_LLM_CLASSIFIER_THRESHOLD", "0.72"))
+NARRATIVE_MAX_EVENTS = int(os.getenv("NARRATIVE_MAX_EVENTS", "80"))

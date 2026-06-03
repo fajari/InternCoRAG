@@ -10,7 +10,7 @@ ENV/
 .env.*
 !.env.example
 .streamlit/secrets.toml
-#uploads/
+uploads/
 #*.pdf
 *_highlighted_*.pdf
 *.log
@@ -32,4 +32,3 @@ htmlcov/
 dist/
 build/
 *.egg-info/
-

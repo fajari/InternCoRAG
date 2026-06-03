@@ -4,6 +4,11 @@ langchain==0.1.16
 langchain-core==0.1.52
 langchain-community==0.0.38
 langchain-text-splitters==0.0.1
+# langchain
+# langchain-core
+# langchain-community
+# langchain-text-splitters
+
 openai
 requests
 
@@ -13,3 +18,10 @@ pypdf
 streamlit-pdf-viewer
 PyMuPDF==1.23.9
 python-dotenv
+networkx
+neo4j
+
+# Optional graph stack is intentionally excluded from the base install
+# because its current releases target newer LangChain / LlamaIndex ecosystems
+# and can force incompatible upgrades. Install selectively from
+# `requirements-graph.txt` only when you need that integration.
